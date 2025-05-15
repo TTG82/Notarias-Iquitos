@@ -1,1 +1,555 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notarías de Iquitos - Perú</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+        }
+        .map-container {
+            height: 500px;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+        }
+        .header-bg {
+            background: linear-gradient(135deg, #1a365d 0%, #2d5282 100%);
+        }
+        .custom-table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .custom-table th {
+            background-color: #1a365d;
+            color: white;
+            font-weight: bold;
+            text-align: left;
+            padding: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .custom-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .custom-table tr:hover {
+            background-color: #e2e8f0;
+        }
+        .custom-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .info-window {
+            min-width: 250px;
+        }
+         {
+            .no-print {
+                display: none;
+            }
+            .print-friendly {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <header class="header-bg text-white py-8 px-4 sm:px-6 lg:px-8 shadow-lg print-friendly">
+        <div class="container mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">Notarías de Iquitos - Perú</h1>
+                    <p class="text-lg opacity-90">Directorio interactivo de servicios notariales</p>
+                </div>
+                <div class="mt-4 md:mt-0">
+                    <div class="bg-white rounded-lg shadow-md p-2 text-gray-800 flex items-center">
+                        <i class="fas fa-info-circle text-blue-700 mr-2"></i>
+                        <span>Datos actualizados: Abril 2025</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <!-- Sección de búsqueda -->
+        <section class="mb-12 bg-white rounded-lg shadow-md p-6 print-friendly">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Buscar Notarías</h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-1">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="Buscar por nombre, dirección o distrito..." 
+                               class="w-full py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                        <div class="absolute right-3 top-3 text-gray-400">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="showAllBtn" class="bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 no-print">
+                        <i class="fas fa-list-ul mr-2"></i>Mostrar Todos
+                    </button>
+                    <button id="toggleMapBtn" class="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-300 no-print">
+                        <i class="fas fa-map-marked-alt mr-2"></i>Ver en Mapa
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de tabla de notarías -->
+        <section class="mb-12 bg-white rounded-lg shadow-md overflow-hidden print-friendly">
+            <h2 class="text-2xl font-bold p-6 text-gray-800 border-b">Listado de Notarías</h2>
+            <div class="overflow-x-auto">
+                <table id="notariesTable" class="custom-table w-full">
+                    <thead>
+                        <tr>
+                            <th class="cursor-pointer" data-sort="nombre">Notario <i class="fas fa-sort ml-1"></i></th>
+                            <th class="cursor-pointer" data-sort="direccion">Dirección <i class="fas fa-sort ml-1"></i></th>
+                            <th class="cursor-pointer" data-sort="distrito">Distrito <i class="fas fa-sort ml-1"></i></th>
+                            <th>Teléfono</th>
+                            <th>Email</th>
+                            <th class="no-print">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Los datos se cargarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Mapa interactivo -->
+        <section id="mapSection" class="mb-12 bg-white rounded-lg shadow-md p-6 hidden print-friendly">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Ubicación de Notarías</h2>
+            <div id="map" class="map-container"></div>
+        </section>
+
+        <!-- Detalle de notaría seleccionada -->
+        <section id="notaryDetail" class="mb-12 bg-white rounded-lg shadow-md p-6 hidden print-friendly">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Detalle de Notaría</h2>
+                <button id="closeDetailBtn" class="text-gray-500 hover:text-gray-700 no-print">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="detailContent" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- El contenido del detalle se cargará dinámicamente -->
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-gray-800 text-white py-8 px-4 sm:px-6 lg:px-8 print-friendly">
+        <div class="container mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Acerca de este directorio</h3>
+                    <p class="mb-2">Este directorio proporciona información actualizada sobre las notarías en la ciudad de Iquitos, Perú.</p>
+                    <p>La información ha sido recopilada de fuentes oficiales como el Consejo del Notariado del Ministerio de Justicia del Perú.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Información importante</h3>
+                    <ul class="list-disc list-inside">
+                        <li class="mb-2">Verifique los horarios de atención antes de visitar una notaría</li>
+                        <li class="mb-2">Los servicios y tarifas pueden variar según cada notaría</li>
+                        <li>Para mayor información, contacte directamente a la notaría de su interés</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Enlaces útiles</h3>
+                    <ul>
+                        <li class="mb-2"><a href="https://www.gob.pe/minjus" class="text-blue-300 hover:text-blue-100 transition-colors duration-300">Ministerio de Justicia del Perú</a></li>
+                        <li class="mb-2"><a href="https://www.gob.pe/institucion/minjus/informes-publicaciones/1770599-directorio-notarial-del-peru-notarias-por-distrito-notarial" class="text-blue-300 hover:text-blue-100 transition-colors duration-300">Directorio Nacional de Notarías</a></li>
+                        <li><a href="https://colegiodenotariosdeloreto.pe/" class="text-blue-300 hover:text-blue-100 transition-colors duration-300">Colegio de Notarios de Loreto</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-8 pt-6 border-t border-gray-700 text-center">
+                <p>&copy; 2025 Directorio de Notarías de Iquitos. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Datos de las notarías
+            const notaries = [
+                {
+                    id: 1,
+                    nombre: "Santiago Rafael Cárdenas Villacorta",
+                    direccion: "Jr. Ucayali N° 134-138",
+                    distrito: "Iquitos",
+                    provincia: "Maynas",
+                    telefono: "(065) 222-964",
+                    email: "notariacardenasvillacorta@gmail.com",
+                    lat: -3.748,
+                    lng: -73.247,
+                    servicios: ["Escrituras públicas", "Poderes", "Testamentos", "Sucesiones intestadas", "Legalizaciones"]
+                },
+                {
+                    id: 2,
+                    nombre: "Jorge Isidoro Cavides Luna",
+                    direccion: "Calle Edilberto Valles N° 702",
+                    distrito: "Punchana",
+                    provincia: "Maynas",
+                    telefono: "(065) 255-037",
+                    email: "notariacavides@gmail.com",
+                    lat: -3.731,
+                    lng: -73.246,
+                    servicios: ["Escrituras públicas", "Poderes", "Legalizaciones", "Actas protocolares"]
+                },
+                {
+                    id: 3,
+                    nombre: "Florentino Quispe Ramos",
+                    direccion: "Jr. Morona N° 163",
+                    distrito: "Iquitos",
+                    provincia: "Maynas",
+                    telefono: "(065) 223-344",
+                    email: "not_fqr@hotmail.com",
+                    lat: -3.746,
+                    lng: -73.242,
+                    servicios: ["Escrituras públicas", "Poderes", "Testamentos", "Legalizaciones", "Actas notariales"]
+                },
+                {
+                    id: 4,
+                    nombre: "Marco Antonio Vela Marroquín",
+                    direccion: "Jr. Ricardo Palma N° 454-456",
+                    distrito: "Iquitos",
+                    provincia: "Maynas",
+                    telefono: "(065) 633-541 / (065) 633-534",
+                    email: "notariam.a.velamarroquin@gmail.com",
+                    lat: -3.749,
+                    lng: -73.252,
+                    servicios: ["Escrituras públicas", "Sucesiones intestadas", "Legalizaciones", "Actas de transferencia"]
+                },
+                {
+                    id: 5,
+                    nombre: "Vladymir Villarreal Balbin",
+                    direccion: "Av. Mariscal Cáceres N° 592",
+                    distrito: "Iquitos",
+                    provincia: "Maynas",
+                    telefono: "(065) 241-471",
+                    email: "vladymir_leos02@hotmail.com",
+                    lat: -3.757,
+                    lng: -73.250,
+                    servicios: ["Escrituras públicas", "Poderes", "Legalizaciones", "Actas notariales", "Constitución de empresas"]
+                },
+                {
+                    id: 6,
+                    nombre: "Lorena Basilio Patow",
+                    direccion: "Avenida Abelardo Quiñones N° 4024",
+                    distrito: "San Juan Bautista",
+                    provincia: "Maynas",
+                    telefono: "931292691",
+                    email: "notarialorenabasiliopatow@gmail.com",
+                    lat: -3.783,
+                    lng: -73.283,
+                    servicios: ["Escrituras públicas", "Poderes", "Legalizaciones", "Constitución de empresas"]
+                }
+            ];
+
+            // Referencias DOM
+            const searchInput = document.getElementById('searchInput');
+            const notariesTable = document.getElementById('notariesTable');
+            const showAllBtn = document.getElementById('showAllBtn');
+            const toggleMapBtn = document.getElementById('toggleMapBtn');
+            const mapSection = document.getElementById('mapSection');
+            const notaryDetail = document.getElementById('notaryDetail');
+            const closeDetailBtn = document.getElementById('closeDetailBtn');
+            const detailContent = document.getElementById('detailContent');
+            
+            let map, mapInitialized = false;
+            let markers = [];
+            let currentSort = { column: null, direction: 'asc' };
+
+            // Función para cargar la tabla
+            function loadTable(data) {
+                const tbody = notariesTable.querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                if (data.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td colspan="6" class="text-center py-4 text-gray-500">No se encontraron notarías que coincidan con tu búsqueda</td>`;
+                    tbody.appendChild(tr);
+                    return;
+                }
+                
+                data.forEach(notary => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="font-medium">${notary.nombre}</td>
+                        <td>${notary.direccion}</td>
+                        <td>${notary.distrito}</td>
+                        <td>${notary.telefono}</td>
+                        <td><a href="mailto:${notary.email}" class="text-blue-600 hover:text-blue-800">${notary.email}</a></td>
+                        <td class="no-print">
+                            <div class="flex gap-2">
+                                <button class="view-map-btn bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded" data-id="${notary.id}">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </button>
+                                <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded" data-id="${notary.id}">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                // Agregar eventos a los botones
+                document.querySelectorAll('.view-map-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const notaryId = parseInt(this.getAttribute('data-id'));
+                        showNotaryOnMap(notaryId);
+                    });
+                });
+
+                document.querySelectorAll('.view-details-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const notaryId = parseInt(this.getAttribute('data-id'));
+                        showNotaryDetails(notaryId);
+                    });
+                });
+            }
+
+            // Función para filtrar notarías
+            function filterNotaries(query) {
+                if (!query) return notaries;
+                
+                query = query.toLowerCase();
+                return notaries.filter(notary => 
+                    notary.nombre.toLowerCase().includes(query) ||
+                    notary.direccion.toLowerCase().includes(query) ||
+                    notary.distrito.toLowerCase().includes(query) ||
+                    notary.email.toLowerCase().includes(query)
+                );
+            }
+
+            // Función para ordenar notarías
+            function sortNotaries(data, column, direction) {
+                return [...data].sort((a, b) => {
+                    if (a[column] < b[column]) return direction === 'asc' ? -1 : 1;
+                    if (a[column] > b[column]) return direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            // Función para inicializar el mapa
+            function initMap() {
+                if (mapInitialized) return;
+                
+                // Centro en Iquitos
+                map = L.map('map').setView([-3.748, -73.25], 13);
+                
+                // Agregar capa base de OpenStreetMap
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+
+                // Agregar marcadores para cada notaría
+                notaries.forEach(notary => {
+                    const marker = L.marker([notary.lat, notary.lng]).addTo(map);
+                    
+                    // Crear contenido del popup
+                    const popupContent = `
+                        <div class="info-window">
+                            <h3 class="font-bold text-lg mb-1">${notary.nombre}</h3>
+                            <p class="mb-1"><i class="fas fa-map-marker-alt text-red-600 mr-2"></i>${notary.direccion}</p>
+                            <p class="mb-1"><i class="fas fa-phone text-green-600 mr-2"></i>${notary.telefono}</p>
+                            <p class="mb-3"><i class="fas fa-envelope text-blue-600 mr-2"></i>${notary.email}</p>
+                            <button class="view-details-popup bg-blue-600 text-white py-1 px-2 rounded text-sm w-full" data-id="${notary.id}">
+                                Ver detalles
+                            </button>
+                        </div>
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                    markers.push({
+                        id: notary.id,
+                        marker: marker
+                    });
+                });
+
+                // Agregar eventos a los popups
+                map.on('popupopen', function(e) {
+                    const popup = e.popup;
+                    const btn = popup._contentNode.querySelector('.view-details-popup');
+                    if (btn) {
+                        btn.addEventListener('click', function() {
+                            const notaryId = parseInt(this.getAttribute('data-id'));
+                            showNotaryDetails(notaryId);
+                        });
+                    }
+                });
+                
+                mapInitialized = true;
+                
+                // Corregir tamaño del mapa
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
+            }
+
+            // Función para mostrar notaría en el mapa
+            function showNotaryOnMap(notaryId) {
+                mapSection.classList.remove('hidden');
+                if (!mapInitialized) {
+                    initMap();
+                }
+                
+                // Encontrar y hacer zoom al marcador
+                const markerObj = markers.find(m => m.id === notaryId);
+                if (markerObj) {
+                    map.setView(markerObj.marker.getLatLng(), 16);
+                    markerObj.marker.openPopup();
+                }
+
+                // Desplazarse al mapa
+                mapSection.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            // Función para mostrar detalles de notaría
+            function showNotaryDetails(notaryId) {
+                const notary = notaries.find(n => n.id === notaryId);
+                if (!notary) return;
+                
+                detailContent.innerHTML = `
+                    <div>
+                        <div class="bg-blue-100 p-5 rounded-lg">
+                            <h3 class="text-xl font-bold mb-3 text-blue-800">${notary.nombre}</h3>
+                            <div class="space-y-3">
+                                <p class="flex items-start">
+                                    <i class="fas fa-map-marker-alt text-red-600 mt-1 mr-3"></i>
+                                    <span>${notary.direccion}, ${notary.distrito}, ${notary.provincia}</span>
+                                </p>
+                                <p class="flex items-start">
+                                    <i class="fas fa-phone text-green-600 mt-1 mr-3"></i>
+                                    <span>${notary.telefono}</span>
+                                </p>
+                                <p class="flex items-start">
+                                    <i class="fas fa-envelope text-blue-600 mt-1 mr-3"></i>
+                                    <a href="mailto:${notary.email}" class="text-blue-600 hover:underline">${notary.email}</a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="bg-gray-100 p-5 rounded-lg">
+                            <h4 class="text-lg font-bold mb-3">Servicios ofrecidos</h4>
+                            <ul class="space-y-2">
+                                ${notary.servicios.map(servicio => `
+                                    <li class="flex items-start">
+                                        <i class="fas fa-check-circle text-green-600 mt-1 mr-3"></i>
+                                        <span>${servicio}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                            <div class="mt-5">
+                                <h4 class="text-lg font-bold mb-3">Horario típico de atención</h4>
+                                <p class="flex items-start">
+                                    <i class="far fa-clock text-gray-600 mt-1 mr-3"></i>
+                                    <span>Lunes a Viernes: 8:00 AM - 5:00 PM<br>Sábados: 9:00 AM - 1:00 PM</span>
+                                </p>
+                                <p class="text-sm mt-2 text-gray-600">* Se recomienda llamar para confirmar horarios específicos</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                notaryDetail.classList.remove('hidden');
+                notaryDetail.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            // Event Listeners
+            searchInput.addEventListener('input', function() {
+                const filteredData = filterNotaries(this.value);
+                loadTable(filteredData);
+            });
+
+            showAllBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                loadTable(notaries);
+            });
+
+            toggleMapBtn.addEventListener('click', function() {
+                if (mapSection.classList.contains('hidden')) {
+                    mapSection.classList.remove('hidden');
+                    this.innerHTML = '<i class="fas fa-times mr-2"></i>Ocultar Mapa';
+                    
+                    if (!mapInitialized) {
+                        initMap();
+                    } else {
+                        map.invalidateSize();
+                    }
+                } else {
+                    mapSection.classList.add('hidden');
+                    this.innerHTML = '<i class="fas fa-map-marked-alt mr-2"></i>Ver en Mapa';
+                }
+            });
+
+            closeDetailBtn.addEventListener('click', function() {
+                notaryDetail.classList.add('hidden');
+            });
+
+            // Agregar evento para ordenar columnas
+            document.querySelectorAll('th[data-sort]').forEach(th => {
+                th.addEventListener('click', function() {
+                    const column = this.getAttribute('data-sort');
+                    
+                    // Cambiar dirección si es la misma columna
+                    let direction = 'asc';
+                    if (currentSort.column === column) {
+                        direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    }
+                    
+                    // Actualizar estado de ordenamiento
+                    currentSort = { column, direction };
+                    
+                    // Filtrar si hay búsqueda activa
+                    const dataToSort = searchInput.value 
+                        ? filterNotaries(searchInput.value) 
+                        : notaries;
+                    
+                    // Ordenar y cargar
+                    const sortedData = sortNotaries(dataToSort, column, direction);
+                    loadTable(sortedData);
+                    
+                    // Actualizar iconos
+                    document.querySelectorAll('th[data-sort] i').forEach(icon => {
+                        icon.className = 'fas fa-sort ml-1';
+                    });
+                    
+                    const icon = this.querySelector('i');
+                    icon.className = `fas fa-sort-${direction === 'asc' ? 'up' : 'down'} ml-1`;
+                });
+            });
+
+            // Cargar datos iniciales
+            loadTable(notaries);
+        });
+    </script>
+</body>
+</html>
+    <script id="html_badge_script1">
+        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
+            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDiBxi4r5mzkn5ReSxaqLXc8Vfc%2FJutvQknIs6ircbUKbp1dnkzzxenn2oUvC3oOYir50VZDGCafwvB7dtsdQ3OBDAE%2FsxPOIoSTnGZBpVVCmASe2cTzO2AJgG8%2B8hQlLSgGcg91reDXVdvE2aA8BheNBTli%2BPe8OyZaBAXKmZRFXYym5pTN022AtsOxExFwyL%2B0AE07ERRHVldXYtoHzjjnmNEt3F3SNf9riO63T56o0bXilSqGX45B42oXj5sPr11FY5vSAs3HSuj8F7R%2FqqjZdrOwyyrjd7bJc6QpdpwhL%2FkrjQGxUAKn8mVaLS6JLw3wIQegiSjVVJd6CYrEYhvxTXx7O88P013oVNfcXc%2BLJ9mpH%2Fib0GzfhlwHsgHeT58D988lE4UDPzai9kYA7m6FmJiZnWqwT4S1710KU4MGz8cPgz%2Be6pYX1avbGlaFojDmVcjbaOl2Jm%2B8oLDF9IpUmkhb0AuUwjWq72Qtf7%2FF4cKqawT9%2FQ7zLKxZ71vcRIg%3D%3D";
+        window.__genspark_locale = "es-ES";
+        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDiBxi4r5mzkn5ReSxaqLXc8Vfc/JutvQknIs6ircbUKbp1dnkzzxenn2oUvC3oOYir50VZDGCafwvB7dtsdQ3OBDAE/sxPOIoSTnGZBpVVCmASe2cTzO2AJgG8+8hQlLSgGcg91reDXVdvE2aA8BheNBTli+Pe8OyZaBAXKmZRFXYym5pTN022AtsOxExFwyL+0AE07ERRHVldXYtoHzjjnmNEt3F3SNf9riO63T56o0bXilSqGX45B42oXj5sPr11FY5vSAs3HSuj8F7R/qqjZdrOwyyrjd7bJc6QpdpwhL/krjQGxUAKn8mVaLS6JLw3wIQegiSjVVJd6CYrEYhvxTXx7O88P013oVNfcXc+LJ9mpH/ib0GzfhlwHsgHeT58D988lE4UDPzai9kYA7m6FmJiZnWqwT4S1710KU4MGz8cPgz+e6pYX1avbGlaFojDmVcjbaOl2Jm+8oLDF9IpUmkhb0AuUwjWq72Qtf7/F4cKqawT9/Q7zLKxZ71vcRIg==";
+    </script>
+    
+        <script id="html_badge_script2" src="https://www.genspark.ai/html_badge.js"></script>
+        
